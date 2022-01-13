@@ -1,0 +1,70 @@
+version: '3'
+services:
+  django:
+    image: konstin2/meine-stadt-transparent
+    container_name: django
+    volumes:
+      - django_static:/static
+      - ./.env:/app/.env
+      - ./log:/app/log
+      - ./customization:/app/customization
+    ports:
+      - 8000:8000
+    networks:
+      - mst_network
+
+  mariadb:
+    image: mariadb:10
+    container_name: mariadb
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    environment:
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_RANDOM_ROOT_PASSWORD=true
+    networks:
+      - mst_network
+    command: ['--character-set-server=utf8mb4', '--collation-server=utf8mb4_unicode_ci']
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.13.2
+    container_name: elasticsearch
+    environment:
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - bootstrap.memory_lock=true
+      - cluster.routing.allocation.disk.threshold_enabled=false
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    ulimits: # Elasticsearch needs those
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - mst_network
+
+  minio:
+      image: minio/minio
+      container_name: minio
+      volumes:
+        - minio_data:/minio_data
+      environment:
+        MINIO_ACCESS_KEY: meinestadttransparent
+        MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      ports:
+        - 9000:9000
+      networks:
+        - mst_network
+      command: server /minio_data
+
+volumes:
+  django_static:
+    external: true
+  mariadb_data:
+  elasticsearch_data:
+  minio_data:
+
+networks:
+  mst_network:
